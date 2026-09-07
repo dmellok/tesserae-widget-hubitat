@@ -1,0 +1,309 @@
+// hubitat_sensor, Spectra stat (single) or list (multi).
+//
+// One attribute → hero number (stat archetype) with the unit as a small
+// trailing label, a trend arrow next to the unit, and a mini SVG
+// sparkline filling the bottom strip. Two or more → list archetype
+// with the attribute icon leading, each row carrying a trend arrow + a
+// hairline sparkline beside its value.
+
+function escapeHtml(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
+const TREND_ICON = {
+  up: "ph-arrow-up-right",
+  down: "ph-arrow-down-right",
+  flat: "ph-arrow-right",
+};
+
+const TREND_ACCENT = {
+  up: "var(--accent-3)",
+  down: "var(--accent-1)",
+  flat: "var(--text-muted)",
+};
+
+function trendIcon(t) {
+  return TREND_ICON[t] || "";
+}
+
+function trendAccent(t) {
+  return TREND_ACCENT[t] || "var(--text-muted)";
+}
+
+function sensorAccent(icon) {
+  // Pick a coherent accent per attribute category. Tracks the icon
+  // table in the server's _ATTRIBUTE_ICONS.
+  switch (icon) {
+    case "drop":
+    case "drop-half":
+    case "wind":
+    case "snowflake":
+      return "var(--accent-4)";
+    case "thermometer":
+    case "thermometer-simple":
+    case "sun":
+    case "sun-dim":
+    case "fire":
+    case "battery-medium":
+    case "lightning":
+      return "var(--accent-2)";
+    case "wave-sine":
+    case "wave-sawtooth":
+    case "wave-triangle":
+    case "plug":
+    case "toggle-right":
+    case "fan":
+      return "var(--accent-5)";
+    case "skull":
+    case "warning":
+    case "circles-three-plus":
+    case "lock":
+      return "var(--accent-1)";
+    case "cloud":
+    case "door":
+    case "garage":
+    case "house":
+    case "person-simple-walk":
+    case "vibrate":
+    case "arrows-vertical":
+    case "footprints":
+    case "heartbeat":
+      return "var(--accent-3)";
+    default:
+      return "var(--text-secondary)";
+  }
+}
+
+// SVG sparkline. Accepts a series + colour + dimensions. Uses
+// preserveAspectRatio="none" so the curve stretches to fill the
+// container in both axes, perfect for inline strips of varying
+// aspect ratios.
+function sparklineSvg(series, color, opts = {}) {
+  if (!Array.isArray(series) || series.length < 2) return "";
+  const w = opts.w ?? 100;
+  const h = opts.h ?? 24;
+  const padY = opts.padY ?? 2;
+  const innerH = h - padY * 2;
+  const min = Math.min(...series);
+  const max = Math.max(...series);
+  const range = max - min < 0.0001 ? 1 : max - min;
+  const step = w / Math.max(1, series.length - 1);
+  const points = series.map((v, i) => {
+    const x = i * step;
+    const y = padY + innerH - ((v - min) / range) * innerH;
+    return { x, y };
+  });
+  const path = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`).join(" ");
+  const fill = opts.fill
+    ? `${path} L ${w} ${h} L 0 ${h} Z`
+    : null;
+  return `
+    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none"
+         width="100%" height="100%" aria-hidden="true">
+      ${fill ? `<path d="${fill}" fill="${color}" opacity="0.18"/>` : ""}
+      <path d="${path}" fill="none" stroke="${color}"
+            stroke-width="${opts.strokeWidth ?? 2}"
+            stroke-linejoin="round" stroke-linecap="round"/>
+    </svg>`;
+}
+
+function renderStat(item, title, showTitle) {
+  const accent = sensorAccent(item.icon);
+  const muted = item.unavailable;
+  const color = muted ? "var(--text-muted)" : accent;
+  const ph = `ph-${item.icon || "gauge"}`;
+  const trend = item.trend;
+  const trendBit = trend && trendIcon(trend)
+    ? `<i class="ph-bold ${trendIcon(trend)}" style="color:${trendAccent(trend)};font-size:.6em;margin-left:.25em;vertical-align:.15em" title="${trend} vs 24h ago"></i>`
+    : "";
+  const spark = Array.isArray(item.sparkline) && item.sparkline.length >= 2
+    ? `<div class="sensor-spark">${sparklineSvg(item.sparkline, color, { w: 200, h: 36, fill: true, strokeWidth: 2.4 })}</div>`
+    : "";
+  const titleRow = showTitle
+    ? `<div class="w-title">
+      <i class="ph-bold ${ph}" style="color:${color}"></i>
+      <h3>${escapeHtml(title)}</h3>
+    </div>`
+    : "";
+  return `
+    ${titleRow}
+    <div class="w-body stat-body" style="gap:var(--space-2)">
+      <div class="stat-value">
+        ${escapeHtml(item.value ?? "-")}
+        ${item.unit ? `<span class="unit">${escapeHtml(item.unit)}</span>` : ""}
+        ${trendBit}
+      </div>
+      ${spark}
+    </div>`;
+}
+
+function renderList(items, title, showTitle, showNames) {
+  const rows = items.map((it, i) => {
+    const accent = it.unavailable ? "var(--text-muted)" : sensorAccent(it.icon);
+    const ph = `ph-${it.icon || "gauge"}`;
+    const unit = it.unit ? `<span class="u-muted" style="font-weight:var(--fw-semi)"> ${escapeHtml(it.unit)}</span>` : "";
+    const trend = it.trend;
+    const trendBit = trend && trendIcon(trend)
+      ? `<i class="ph-bold ${trendIcon(trend)} sensor-trend" style="color:${trendAccent(trend)}" title="${trend} vs 24h"></i>`
+      : "";
+    const spark = Array.isArray(it.sparkline) && it.sparkline.length >= 2
+      ? `<span class="sensor-row-spark">${sparklineSvg(it.sparkline, accent, { w: 64, h: 16, strokeWidth: 1.5 })}</span>`
+      : "";
+    return `
+      <div class="sensor-row ${i % 2 ? "is-zebra" : ""}">
+        <div class="list-lead sensor-row-lead">
+          <i class="ph-bold ${ph}" style="color:${accent}"></i>
+          ${showNames ? `<span class="list-title">${escapeHtml(it.name)}</span>` : ""}
+        </div>
+        <div class="sensor-row-meta">
+          ${spark}
+          ${trendBit}
+          <span class="sensor-row-value" style="color:${accent}">${escapeHtml(it.value ?? "-")}${unit}</span>
+        </div>
+      </div>`;
+  }).join("");
+  const titleRow = showTitle
+    ? `<div class="w-title">
+      <i class="ph-bold ph-gauge" style="color:var(--accent-3)"></i>
+      <h3>${escapeHtml(title)}</h3>
+      <span class="w-title-meta">${items.length}</span>
+    </div>`
+    : "";
+  return `
+    ${titleRow}
+    <div class="w-body list-body">${rows}</div>`;
+}
+
+export default function render(shadow, ctx) {
+  const data = ctx?.data ?? {};
+  const css = `<link rel="stylesheet" href="/static/style/spectra-widgets.css">`;
+
+  if (data.error) {
+    shadow.innerHTML = `
+      ${css}
+      <div class="w" data-widget="hubitat_sensor">
+        <div class="w-title"><i class="ph-bold ph-warning-circle"></i><h3>Sensors</h3></div>
+        <div class="w-body"><p class="u-muted">${escapeHtml(data.error)}</p></div>
+      </div>`;
+    return;
+  }
+
+  const items = Array.isArray(data.items) ? data.items : [];
+  const title = data.title || (items.length === 1 ? items[0].name : "Sensors");
+
+  if (data.empty || items.length === 0) {
+    shadow.innerHTML = `
+      ${css}
+      <div class="w" data-widget="hubitat_sensor">
+        <div class="w-title"><i class="ph-bold ph-gauge"></i><h3>${escapeHtml(title)}</h3></div>
+        <div class="w-body"><p class="u-muted">No device attributes selected.</p></div>
+      </div>`;
+    return;
+  }
+
+  const layout = `
+    /* Hero sparkline strip for the single-attribute stat mode. Fills
+       the body's flexible space so the hero number sits on top and
+       the curve carries the bottom. */
+    .sensor-spark {
+      flex: 1 1 auto;
+      min-height: 2.5em;
+      width: 100%;
+    }
+    /* Per-row meta for the list mode. Tabular nums on the value so
+       columns line up across rows. */
+    .sensor-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius-1);
+      min-width: 0;
+    }
+    .sensor-row.is-zebra {
+      background: color-mix(in oklab, var(--text-primary) 3%, transparent);
+    }
+    .sensor-row-lead {
+      flex: 1 1 auto;
+      min-width: 0;
+      gap: var(--space-2);
+    }
+    .sensor-row-lead .list-title {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .sensor-row-meta {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2);
+      flex: 0 0 auto;
+    }
+    .sensor-row-spark {
+      width: 4em;
+      height: 1em;
+      display: inline-flex;
+      align-items: center;
+      flex: 0 0 auto;
+    }
+    .sensor-trend {
+      font-size: .9em;
+    }
+    .sensor-row-value {
+      font-weight: var(--fw-bold);
+      font-variant-numeric: tabular-nums;
+    }
+    @container (max-width: 320px) {
+      .sensor-row-spark { display: none; }
+    }
+  `;
+
+  // Fragments: the Panels canvas can place just one part of the widget.
+  // ``ctx.fragment`` selects which; "full" (default) is the whole card.
+  // The value + spark fragments key off the lead (or only) attribute.
+  const frag = ctx?.fragment || "full";
+  const lead = items[0];
+  if (frag === "value") {
+    const accent = lead.unavailable ? "var(--text-muted)" : sensorAccent(lead.icon);
+    const trendBit = lead.trend && trendIcon(lead.trend)
+      ? `<i class="ph-bold ${trendIcon(lead.trend)}" style="color:${trendAccent(lead.trend)};font-size:.42em;margin-left:.2em;vertical-align:.35em"></i>`
+      : "";
+    shadow.innerHTML = `
+      ${css}
+      <style>
+        .sensor-frag-value { display: flex; align-items: center; justify-content: center; height: 100%; }
+        .sensor-frag-value .v { font-size: clamp(1.8em, 26cqmin, 6em); font-weight: var(--fw-black); line-height: 1; color: ${accent}; font-variant-numeric: tabular-nums; }
+        .sensor-frag-value .u { font-size: .4em; color: var(--text-muted); font-weight: var(--fw-bold); margin-left: .12em; }
+      </style>
+      <div class="w" data-widget="hubitat_sensor"><div class="w-body sensor-frag-value">
+        <span class="v">${escapeHtml(lead.value ?? "-")}${lead.unit ? `<span class="u">${escapeHtml(lead.unit)}</span>` : ""}${trendBit}</span>
+      </div></div>`;
+    return;
+  }
+  if (frag === "spark") {
+    const accent = lead.unavailable ? "var(--text-muted)" : sensorAccent(lead.icon);
+    const spark = Array.isArray(lead.sparkline) && lead.sparkline.length >= 2
+      ? sparklineSvg(lead.sparkline, accent, { w: 200, h: 60, fill: true, strokeWidth: 2.4 })
+      : '<p class="u-muted">No history.</p>';
+    shadow.innerHTML = `
+      ${css}
+      <style>.sensor-frag-spark { height: 100%; width: 100%; display: flex; align-items: stretch; }</style>
+      <div class="w" data-widget="hubitat_sensor"><div class="w-body"><div class="sensor-frag-spark">${spark}</div></div></div>`;
+    return;
+  }
+
+  // Visibility toggles from the server payload; default on so cells
+  // saved before the options existed keep their title / names.
+  const showTitle = data.show_title !== false;
+  const showNames = data.show_names !== false;
+  const body = items.length === 1
+    ? renderStat(items[0], title, showTitle)
+    : renderList(items, title, showTitle, showNames);
+  shadow.innerHTML = `
+    ${css}
+    <style>${layout}</style>
+    <div class="w" data-widget="hubitat_sensor">${body}</div>`;
+}

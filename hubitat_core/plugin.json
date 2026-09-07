@@ -1,0 +1,41 @@
+{
+  "tesserae_compat": "1.x",
+  "name": "Hubitat Core",
+  "version": "0.1.0",
+  "kind": "data",
+  "description": "Shared Hubitat Elevation connection for the hubitat_* widget family. Enable the built-in Maker API app on your hub (Apps → Add Built-In App → Maker API), tick the devices to expose, then paste the app's base URL and access token once here. Every hubitat widget reads live device attributes from it over plain REST. No cell of its own.",
+  "icon": "ph-house-line",
+  "supports": { "sizes": ["xs", "sm", "md", "lg"] },
+  "settings": [
+    {
+      "name": "api_url",
+      "type": "string",
+      "label": "Maker API base URL (e.g. http://192.168.1.20/apps/api/12, or the cloud form https://cloud.hubitat.com/api/<hub-id>/apps/12)",
+      "default": ""
+    },
+    {
+      "name": "access_token",
+      "type": "string",
+      "label": "Maker API access token",
+      "secret": true,
+      "default": ""
+    },
+    {
+      "name": "temperature_unit",
+      "type": "string",
+      "label": "Temperature unit shown next to temperature attributes (F or C; the hub's own scale, Settings → Hub Details → Temperature Scale)",
+      "default": "F"
+    },
+    {
+      "name": "verify_tls",
+      "type": "boolean",
+      "label": "Verify TLS certificate (uncheck for a hub on self-signed HTTPS)",
+      "default": true
+    }
+  ],
+  "requires": [
+    "network:*",
+    "settings:plugin"
+  ],
+  "render": { "needs_network": true }
+}
