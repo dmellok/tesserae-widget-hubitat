@@ -1,7 +1,7 @@
 {
   "tesserae_compat": "1.x",
   "name": "Hubitat Core",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "kind": "data",
   "description": "Shared Hubitat Elevation connection for the hubitat_* widget family. Enable the built-in Maker API app on your hub (Apps → Add Built-In App → Maker API), tick the devices to expose, then paste the app's base URL and access token once here. Every hubitat widget reads live device attributes from it over plain REST. No cell of its own.",
   "icon": "ph-house-line",

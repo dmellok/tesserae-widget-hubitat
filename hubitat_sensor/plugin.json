@@ -1,7 +1,7 @@
 {
   "tesserae_compat": "1.x",
   "name": "Hubitat, Sensor",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "kind": "widget",
   "description": "One or more Hubitat device attributes as bold value blocks. A single attribute fills the cell as a hero number with a trend arrow + 24h sparkline beneath; several lay out as a list with per-row trend + hairline sparkline. Lead glyph picks up the attribute (temperature → thermometer, humidity → drop, contact → door, motion → walker, switch → toggle, etc.). Requires the Hubitat Core plugin.",
   "icon": "ph-gauge",
