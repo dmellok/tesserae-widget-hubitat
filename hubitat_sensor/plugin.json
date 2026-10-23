@@ -1,7 +1,7 @@
 {
   "tesserae_compat": "1.x",
   "name": "Hubitat, Sensor",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "kind": "widget",
   "description": "One or more Hubitat device attributes as bold value blocks. A single attribute fills the cell as a hero number with a trend arrow + 24h sparkline beneath; several lay out as a list with per-row trend + hairline sparkline. Lead glyph picks up the attribute (temperature → thermometer, humidity → drop, contact → door, motion → walker, switch → toggle, etc.). Requires the Hubitat Core plugin.",
   "icon": "ph-gauge",
@@ -9,19 +9,6 @@
     "sizes": ["xs", "sm", "md", "lg"]
   },
   "cell_options": [
-    {
-      "name": "title",
-      "type": "string",
-      "label": "Title (blank = device name / \"Sensors\")",
-      "default": ""
-    },
-    {
-      "name": "show_title",
-      "type": "boolean",
-      "label": "Show title row",
-      "default": true,
-      "help": "Off hides the whole title row (icon + name), so a single attribute shows just its value."
-    },
     {
       "name": "entities",
       "type": "multiselect",
@@ -31,12 +18,45 @@
       "help": "Each entry is one attribute of one device (Lounge · Temperature, Front Door · Contact). The list comes from the devices you exposed in the Maker API app on the hub."
     },
     {
+      "name": "show_trend",
+      "type": "boolean",
+      "label": "Trend arrow",
+      "default": true,
+      "help": "Up, down or flat against 24 hours ago."
+    },
+    {
+      "name": "show_sparkline",
+      "type": "boolean",
+      "label": "Sparkline",
+      "default": true,
+      "help": "The last 24 hours, built from the hub's recent event log for the device. The hub keeps a fixed number of events per device, so a very chatty sensor may cover less than 24 hours."
+    },
+    {
+      "name": "show_title",
+      "type": "boolean",
+      "label": "Title line",
+      "default": true,
+      "help": "Off hides the whole title row (icon and name), so a single attribute shows just its value."
+    },
+    {
+      "name": "title",
+      "type": "string",
+      "label": "Title",
+      "default": "",
+      "help": "Blank uses the device name, or Sensors when several attributes are listed.",
+      "show_if": {
+        "show_title": true
+      },
+      "advanced": true
+    },
+    {
       "name": "overrides",
       "type": "entity_overrides",
-      "label": "Custom names + icons + number format",
+      "label": "Names, icons and formats",
       "default": "",
       "formats": true,
-      "help": "One row per ticked attribute. Leave the name blank to keep the auto label; pick \"No icon\" to keep the auto icon. The format box overrides the widget number format for that attribute (blank = use the widget default)."
+      "help": "One row per ticked attribute. Leave the name blank to keep the auto label; pick \"No icon\" to keep the auto icon. The format box overrides the widget number format for that attribute (blank = use the widget default).",
+      "advanced": true
     },
     {
       "name": "number_format",
@@ -44,34 +64,24 @@
       "label": "Number format",
       "default": "",
       "placeholder": "auto (e.g. 0, 0.0, 0.00)",
-      "help": "How numeric values are shown. Blank rounds to 2 decimals and trims trailing zeros (72.00 → 72). Use 0 for whole numbers, 0.0 for one decimal, 0.00 for two, and so on. Per-attribute overrides live in the row above."
+      "help": "How numeric values are shown. Blank rounds to 2 decimals and trims trailing zeros (72.00 → 72). Use 0 for whole numbers, 0.0 for one decimal, 0.00 for two, and so on. Per-attribute overrides live in the row above.",
+      "advanced": true
     },
     {
       "name": "show_unit",
       "type": "boolean",
-      "label": "Show units",
+      "label": "Units",
       "default": true,
-      "help": "Hubitat doesn't send units with device values, so these come from the attribute name (humidity → %, power → W) and the temperature scale set in Hubitat Core."
+      "help": "Hubitat doesn't send units with device values, so these come from the attribute name (humidity → %, power → W) and the temperature scale set in Hubitat Core.",
+      "advanced": true
     },
     {
       "name": "show_names",
       "type": "boolean",
-      "label": "Show names (list rows)",
+      "label": "Names",
       "default": true,
-      "help": "Off hides the per-row name when several attributes are listed, leaving icon + value."
-    },
-    {
-      "name": "show_trend",
-      "type": "boolean",
-      "label": "Show trend arrow (up / down / flat vs 24h)",
-      "default": true
-    },
-    {
-      "name": "show_sparkline",
-      "type": "boolean",
-      "label": "Show 24h sparkline",
-      "default": true,
-      "help": "Built from the hub's recent event log for the device. The hub keeps a fixed number of events per device, so a very chatty sensor may cover less than 24 hours."
+      "help": "Off hides the name on each row when several attributes are listed, leaving icon and value.",
+      "advanced": true
     }
   ],
   "fragments": [
